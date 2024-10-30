@@ -26,8 +26,31 @@ RETURN_TYPE = "return_statement"
 EXPRESSION_TYPE = "expression_statement"
 ASSIGNMENT_TYPE = "assignment"
 
+def extract_program(result: str, last_only=False):
+    program = ""
+    start = False
+    result = result.replace("<end_of_step>", "")
+    for line in result.split("\n"):
+        if line.find("<code>") != -1:
+            if last_only:
+                program = "" # only extract the last program
+            else:
+                program += "\n# ========\n"
+            start = True
+        elif line.find("<end_of_code>") != -1:
+            start = False
+        elif line.find("<end_of_step>") != -1:
+            continue
+        elif start:
+            program += line + "\n"
+    # maybe all output is a program
+    if not program:
+        program = result
+    return program.strip()
 
 def code_extract(text: str) -> str:
+    if '<code>' in text:
+        return extract_program(text, last_only=False)
     lines = text.split("\n")
     longest_line_pair = (0, 0)
     longest_so_far = 0

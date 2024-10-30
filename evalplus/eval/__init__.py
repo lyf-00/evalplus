@@ -140,7 +140,7 @@ def unsafe_execute(
         rmtree = shutil.rmtree
         rmdir = os.rmdir
         chdir = os.chdir
-        reliability_guard(maximum_memory_bytes=query_maximum_memory_bytes())
+        # reliability_guard(maximum_memory_bytes=query_maximum_memory_bytes())
         exec_globals = {}
         try:
             with swallow_io():

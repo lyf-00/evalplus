@@ -94,6 +94,7 @@ def check_correctness(
         "_identifier": identifier,
         "solution": solution,
     }
+    print('ret', ret)
     ret["base"] = untrusted_check(
         dataset,
         solution,
@@ -174,6 +175,10 @@ def evaluate(
             expected_output = get_groundtruth(problems, dataset_hash, [])
         elif dataset == "mbpp":
             problems = get_mbpp_plus(mini=mini, noextreme=noextreme, version=version)
+            ### debug
+            print(problems.keys())
+            problems = {'Mbpp/6': problems['Mbpp/6']}
+            ### end debug
             dataset_hash = get_mbpp_plus_hash(
                 mini=mini, noextreme=noextreme, version=version
             )
@@ -200,9 +205,9 @@ def evaluate(
             for sample in tqdm(load_solutions(samples)):
                 task_id = sample["task_id"]
                 if task_id not in problems:
-                    warn(
-                        f"Task {task_id} is found in the samples but not found in the dataset"
-                    )
+                    # warn(
+                    #     f"Task {task_id} is found in the samples but not found in the dataset"
+                    # )
                     continue
                 solution = (
                     sample["solution"]
@@ -210,6 +215,7 @@ def evaluate(
                     else problems[task_id]["prompt"] + sample["completion"]
                 )
                 remainings.add(sample["_identifier"])
+                
                 args = (
                     dataset,
                     completion_id[task_id],
@@ -352,7 +358,7 @@ def evaluate(
 
     if not os.path.isfile(result_path):
         with open(result_path, "w") as f:
-            json.dump(results, f)
+            json.dump(results, f, indent=4)
 
 
 def main():

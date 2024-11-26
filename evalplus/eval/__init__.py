@@ -132,6 +132,7 @@ def unsafe_execute(
     details,  # Array
     progress,  # Value
 ):
+    print('1')
     with create_tempdir():
         # These system calls are needed when cleaning up tempdir.
         import os
@@ -141,20 +142,28 @@ def unsafe_execute(
         rmdir = os.rmdir
         chdir = os.chdir
         # reliability_guard(maximum_memory_bytes=query_maximum_memory_bytes())
+        print('2')
         exec_globals = {}
+
         try:
             with swallow_io():
+                print('3')
                 exec(code, exec_globals)
+                print('4')
                 fn = exec_globals[entry_point]
+                print('5')
 
             for i, inp in enumerate(inputs):
+                print(i, inp)
                 try:
                     with time_limit(time_limits[i]):
                         with swallow_io():
+                            print(fn)
                             out = fn(*inp)
 
                     exp = expected[i]
                     exact_match = out == exp
+                    print('exact_match', exact_match, 'exp', exp, 'out', out)
 
                     # ================================================ #
                     # ============== special oracles ================= #
@@ -201,7 +210,8 @@ def unsafe_execute(
                         assert np.allclose(out, exp, rtol=1e-07, atol=atol)
                     else:
                         assert exact_match
-                except BaseException:
+                except BaseException as e:
+                    print(e)
                     details[i] = False
                     progress.value += 1
                     if fast_check:
@@ -212,8 +222,9 @@ def unsafe_execute(
                 progress.value += 1
 
             stat.value = _SUCCESS
-        except BaseException:
+        except BaseException as e:
             stat.value = _FAILED
+            print(e)
         # Needed for cleaning up.
         shutil.rmtree = rmtree
         os.rmdir = rmdir
@@ -241,7 +252,7 @@ def untrusted_check(
     progress = Value("i", 0)
     stat = Value("i", _UNKNOWN)
     details = Array("b", [False for _ in range(len(inputs))])
-
+    print('before unsafe_execute')
     p = multiprocessing.Process(
         target=unsafe_execute,
         args=(

@@ -49,7 +49,7 @@ def extract_program(result: str, last_only=False):
     return program.strip()
 
 def code_extract(text: str) -> str:
-    if '<code>' in text:
+    if '<code>' in text or '<end_of_step>'  in text:
         return extract_program(text, last_only=False)
     lines = text.split("\n")
     longest_line_pair = (0, 0)

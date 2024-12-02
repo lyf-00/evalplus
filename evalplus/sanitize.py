@@ -16,6 +16,7 @@ from evalplus.data import (
     write_jsonl,
 )
 from evalplus.syncheck import syntax_check
+import timeout_decorator
 
 CLASS_TYPE = "class_definition"
 FUNCTION_TYPE = "function_definition"
@@ -26,7 +27,7 @@ RETURN_TYPE = "return_statement"
 EXPRESSION_TYPE = "expression_statement"
 ASSIGNMENT_TYPE = "assignment"
 
-def extract_program(result: str, last_only=False):
+def extract_program_in_special_token(result: str, last_only=False):
     program = ""
     start = False
     result = result.replace("<end_of_step>", "")
@@ -45,12 +46,45 @@ def extract_program(result: str, last_only=False):
             program += line + "\n"
     # maybe all output is a program
     if not program:
-        program = result
+        # program = result
+        return None
     return program.strip()
 
+def extract_program_in_delimiter(result: str, last_only=False):
+    program = ""
+    start = False
+    result = result.replace("<end_of_step>", "")
+    for line in result.split("\n"):
+        if line.find("```python") != -1:
+            if last_only:
+                program = "" # only extract the last program
+            else:
+                program += "\n# ========\n"
+            start = True
+        elif line.find("```") != -1:
+            start = False
+        elif line.find("<end_of_step>") != -1:
+            continue
+        elif start:
+            program += line + "\n"
+    # maybe all output is a program
+    if not program:
+        return None
+    return program.strip()
+
+
+@timeout_decorator.timeout(5, use_signals=True)
 def code_extract(text: str) -> str:
+    # print('0.0 code extract')
+    program = None
     if '<code>' in text or '<end_of_step>'  in text:
-        return extract_program(text, last_only=False)
+        program = extract_program_in_special_token(text, last_only=False)
+    if program is None:
+        program = extract_program_in_delimiter(text, last_only=False)
+    if program is not None:
+        return program
+        
+    # print('0.1 code extract not using our extraction')
     lines = text.split("\n")
     longest_line_pair = (0, 0)
     longest_so_far = 0
@@ -58,11 +92,16 @@ def code_extract(text: str) -> str:
     for i in range(len(lines)):
         for j in range(i + 1, len(lines)):
             current_lines = "\n".join(lines[i : j + 1])
-            if syntax_check(current_lines):
-                current_length = sum(1 for line in lines[i : j + 1] if line.strip())
-                if current_length > longest_so_far:
-                    longest_so_far = current_length
-                    longest_line_pair = (i, j)
+            try:
+                if syntax_check(current_lines):
+                    current_length = sum(1 for line in lines[i : j + 1] if line.strip())
+                    if current_length > longest_so_far:
+                        longest_so_far = current_length
+                        longest_line_pair = (i, j)
+            except timeout_decorator.TimeoutError:
+                print('TimeoutError in syntax_check')
+                return ''
+                
 
     return "\n".join(lines[longest_line_pair[0] : longest_line_pair[1] + 1])
 
@@ -131,10 +170,24 @@ def has_return_statement(node: Node) -> bool:
 
 
 def extract_target_code_or_empty(code: str, entrypoint: Optional[str] = None) -> str:
-    code = code_extract(code)
+    # print('1 extract_target_code_or_empty')
+    try:
+        code = code_extract(code)
+    except timeout_decorator.TimeoutError:
+        print("Code extraction timeout!")
+        return "Code extraction timeout"
+    # print('1.25 after code extract')
     code_bytes = bytes(code, "utf8")
+    # print('1.5 before init parser')
     parser = Parser(Language(tree_sitter_python.language()))
-    tree = parser.parse(code_bytes)
+    parser.timeout_micros = 5_000_000  # 5s
+    # print('2 before parser')
+    try:
+        tree = parser.parse(code_bytes)
+    except TimeoutError:
+        print("Parsing timeout!")
+        return "Parsing timeout"
+    # print('3 after parser')
     class_names = set()
     function_names = set()
     variable_names = set()
@@ -190,8 +243,12 @@ def extract_target_code_or_empty(code: str, entrypoint: Optional[str] = None) ->
 
 def sanitize(code: str, entrypoint: Optional[str] = None) -> str:
     sanitized_code = extract_target_code_or_empty(code, entrypoint).strip()
+    # print('4 after extract_target_code_or_empty')
     if not sanitized_code:
-        return code_extract(code)
+        try:
+            return code_extract(code)
+        except timeout_decorator.TimeoutError:
+            return "Code extraction timeout"
     return sanitized_code
 
 

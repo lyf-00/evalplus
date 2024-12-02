@@ -4,13 +4,14 @@
 """
 
 import ast
+import timeout_decorator
 import traceback
 
 from termcolor import colored
 
 from evalplus.data import load_solutions
 
-
+@timeout_decorator.timeout(5, use_signals=True)
 def syntax_check(code, verbose=False):
     try:
         ast.parse(code)

@@ -92,7 +92,7 @@ def code_extract(text: str) -> str:
     #     program = extract_program_in_special_token(text, last_only=False)
     # if program is None:
     #     program = extract_program_in_delimiter(text, last_only=False)
-    program = extrat_program(text)
+    program = extract_program(text)
     if program is not None:
         return program
         

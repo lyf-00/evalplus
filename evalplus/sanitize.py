@@ -32,13 +32,13 @@ def extract_program_in_special_token(result: str, last_only=False):
     start = False
     result = result.replace("<end_of_step>", "")
     for line in result.split("\n"):
-        if line.find("<code>") != -1:
+        if line.find("<code>") != -1 or line.find("<|begin_of_code|>") != -1:
             if last_only:
                 program = "" # only extract the last program
             else:
                 program += "\n# ========\n"
             start = True
-        elif line.find("<end_of_code>") != -1:
+        elif line.find("<end_of_code>") != -1 or line.find("<|end_of_code|>") != -1:
             start = False
         elif line.find("<end_of_step>") != -1:
             continue
@@ -73,14 +73,26 @@ def extract_program_in_delimiter(result: str, last_only=False):
     return program.strip()
 
 
+def extract_program(model_output):
+    program = extract_program_in_special_token(model_output, last_only=False)
+    
+    if program is None:
+        program = extract_program_in_delimiter(model_output, last_only=False)
+    if program is None:
+        program = model_output
+    if '```python' in program:
+        program = extract_program_in_delimiter(program, last_only=False)
+    return program
+
 @timeout_decorator.timeout(5, use_signals=True)
 def code_extract(text: str) -> str:
     # print('0.0 code extract')
     program = None
-    if '<code>' in text or '<end_of_step>'  in text:
-        program = extract_program_in_special_token(text, last_only=False)
-    if program is None:
-        program = extract_program_in_delimiter(text, last_only=False)
+    # if '<code>' in text or '<end_of_step>'  in text:
+    #     program = extract_program_in_special_token(text, last_only=False)
+    # if program is None:
+    #     program = extract_program_in_delimiter(text, last_only=False)
+    program = extrat_program(text)
     if program is not None:
         return program
         

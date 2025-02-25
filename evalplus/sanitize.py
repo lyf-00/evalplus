@@ -32,13 +32,13 @@ def extract_program_in_special_token(result: str, last_only=False):
     start = False
     result = result.replace("<end_of_step>", "")
     for line in result.split("\n"):
-        if line.find("<code>") != -1 or line.find("<|begin_of_code|>") != -1:
+        if line.find("<code>") != -1 or line.find("<|begin_of_code|>") != -1 or line.find('<answer>') != -1:
             if last_only:
                 program = "" # only extract the last program
             else:
                 program += "\n# ========\n"
             start = True
-        elif line.find("<end_of_code>") != -1 or line.find("<|end_of_code|>") != -1:
+        elif line.find("<end_of_code>") != -1 or line.find("<|end_of_code|>") != -1 or line.find('</answer>') != -1:
             start = False
         elif line.find("<end_of_step>") != -1:
             continue
